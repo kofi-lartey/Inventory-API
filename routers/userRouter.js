@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { forgotPasswordOtp, login, resendOtp, resetPassword, signUp, verifyOtp } from "../controllers/userController.js";
+import { deleteUser, editUser, forgotPasswordOtp, getAllUsers, getUserById, getUserByNameRoleandEmail, login, resendOtp, resetPassword, signUp, verifyOtp } from "../controllers/userController.js";
 import { authenticate } from "../middleware/authMiddleware.js";
 
 
@@ -17,3 +17,12 @@ userRouter.post('/verify-otp', verifyOtp)
 // password reset
 userRouter.post('/request-passwordOTP', forgotPasswordOtp)
 userRouter.post('/reset-password', resetPassword)
+
+// get all users
+userRouter.get('/all-users',getAllUsers)
+userRouter.get('/:id',getUserById)
+userRouter.get('/search/name',getUserByNameRoleandEmail)
+
+// edit or delete user
+userRouter.put('/edit/:id',editUser)
+userRouter.delete('/delete/:id',deleteUser);

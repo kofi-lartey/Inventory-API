@@ -266,3 +266,91 @@ export const login = async (req, res) => {
         return res.status(500).json({ message: error.message })
     }
 }
+
+// Admins Endpoints
+
+// get all users
+export const getAllUsers = async(req, res)=>{
+    try {
+        const users = await User.find().select('-password -otp -otpExpiresAt');
+        if(users.length === 0){
+            return res.status(404).json({message: "No users found"})
+        }
+        return res.status(200).json({message: "All Users", users})
+    } catch (error) {
+        return res.status(500).json({ message: error.message })    
+    }
+}
+
+// get user by id
+export const getUserById = async(req,res)=>{
+    try {
+        const {id} = req.params;
+        const user = await User.findById(id).select('-password -otp -otpExpiresAt');
+        if(!user){
+            return res.status(404).json({message: "User not found"})
+        }
+        return res.status(200).json({message: "User found", user})
+    } catch (error) {
+        return res.status(500).json({ message: error.message })
+    }
+}
+
+// get user by name,role and email
+export const getUserByNameRoleandEmail = async(req,res)=>{
+    try {
+        const { fullName, role, email } = req.body;
+        const body = {};
+        if (fullName) {
+            body.fullName = { $regex: fullName, $options: 'i' }; // case-insensitive search
+        }
+        if (role) {
+            body.role = role;
+        }
+        if(email){
+            body.email = email;
+        }
+        const users = await User.find(body).select('-password -otp -otpExpiresAt');
+        if(users.length === 0){
+            return res.status(404).json({message: "No users found matching the criteria"})
+        }
+        return res.status(200).json({message: "Users found", users})
+        
+    } catch (error) {
+        return res.status(500).json({ message: error.message }) 
+    }
+}
+
+// editing and deleting users can be added later
+export const editUser = async(req,res)=>{
+    try {
+        const {id} = req.params;
+        const {password,role, ...updateData} = req.body;
+        const updateUser = await User.findByIdAndUpdate(
+            id,
+            updateData,
+            {new:true}
+        ).select('-password -otp -otpExpiresAt');
+        if(!updateUser){
+            return res.status(404).json({message: "User not found"})
+        }
+        return res.status(200).json({message: "User updated", updateUser})
+    } catch (error) {
+        return res.status(500).json({ message: error.message }) 
+    }
+}
+
+
+// delete user
+export const deleteUser = async(req,res)=>{
+    try {
+        const {id} = req.params;
+        const deleteUser = await User.findByIdAndDelete(id).select('-password -otp -otpExpiresAt');
+        if(!deleteUser){
+            return res.status(404).json({message: "User not found"})
+        }
+        return res.status(200).json({message: "User deleted", deleteUser})
+    } catch (error) {
+        return res.status(500).json({ message: error.message })
+    }
+}
