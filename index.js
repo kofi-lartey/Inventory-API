@@ -1,13 +1,16 @@
 import express from 'express';
 import { MONGOURI, PORT } from './config/env.js';
 import mongoose from 'mongoose';
-
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { userRouter } from './routers/userRouter.js';
 
 const app = express();
-
 app.use(express.json());
+app.use(cors())
 
-
+// routers
+app.use('/api/V1/user', userRouter)
 
 
 

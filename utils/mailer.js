@@ -15,43 +15,46 @@ const transporter = nodemailer.createTransport({
 });
 
 // otp mail
-export const sendIDEmail = async (email, fullName, staffID, role) => {
+export const sendOTPEmail = async (email, fullName, otp) => {
   try {
     const info = await transporter.sendMail({
       from: SMTP_USER,
       to: email,
-      subject: "👋 Welcome to Suku Technologies – Your ID is Here!",
-      text: `Hello ${fullName}, welcome to Suku Technologies!
+      subject: "🔒 Verify Your Account - Your OTP is Here!",
+      text: `Hello ${fullName},
 
-Your Unique ID is: ${staffID}
-Role: ${role}
+Your One-Time Password (OTP) for account verification is: ${otp}
 
-Use this ID to check in and out whenever you arrive at or leave the workplace.
+This code will expire in 1o minutes.
 
-If you did not sign up with us, please ignore this email.`,
+If you did not request this verification, please ignore this email.`,
       html: `
         <div style="font-family: Arial, sans-serif; color: #222; background: #f9f9f9; padding: 24px; border-radius: 8px; line-height: 1.6;">
-          <h2 style="color: #2d7ff9;">👋 Welcome to Suku Technologies, ${fullName}!</h2>
+          <h2 style="color: #2d7ff9;">🔑 Account Verification for Kofi Inventory</h2>
 
-          <p style="font-size: 16px;">We're excited to have you on board as a <strong>${role}</strong>.</p>
-
-          <p style="font-size: 16px;">Your ID for Checking In and Out:</p>
-          <p style="font-size: 24px; font-weight: bold; color: #2d7ff9;">${staffID}</p>
+          <p style="font-size: 16px;">Hello <strong>${fullName}</strong>,</p>
 
           <p style="font-size: 16px;">
-            You will use this ID to <strong>Check In</strong> and <strong>Check Out</strong> whenever you come in or leave the office.
+            Please use the following One-Time Password (OTP) to verify your account:
+          </p>
+          <p style="font-size: 24px; font-weight: bold; color: #2d7ff9;">${otp}</p>
+
+          <p style="font-size: 16px;">
+            This OTP is valid for the next <strong>1 hour</strong>.
           </p>
 
           <p style="font-size: 14px; color: #888; margin-top: 24px;">
-            If you did not register with Suku Technologies, please ignore this email or contact our support team.
+            If you did not initiate this verification request, please ignore this email.
           </p>
         </div>
       `,
     });
 
     console.log("Message sent: %s", info.messageId);
-    console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
   } catch (error) {
-    console.error("❌ Error while sending welcome email", error);
+    console.error("❌ Error while sending OTP email:", error);
+    // You might want to throw the error to handle it in the calling function
+    throw error;
   }
 };
+

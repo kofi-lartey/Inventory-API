@@ -21,3 +21,6 @@ export const SECRET = process.env.JWT_SECRET
 // paystack keys
 export const PayStack_Test_Secret_Key = process.env.PayStack_Test_Secret_Key
 export const PayStack_Test_Public_Key = process.env.PayStack_Test_Public_Key
+
+// Admin code
+export const ADMIN_CODE = process.env.ADMIN_CODE
