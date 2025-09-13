@@ -1,24 +1,24 @@
 import { ADMIN_CODE, SECRET } from '../config/env.js';
-import { loginSchema, otpSchema, userSchema } from '../schema/userSchema.js';
+import { forgotPasswordOtpSchema, loginSchema, otpSchema, resetPasswordSchema, userSchema } from '../schema/userSchema.js';
 import { User } from '../models/userModel.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { otpGenerator } from '../utils/help.js';
-import { sendOTPEmail } from '../utils/mailer.js';
+import { sendOTPEmail, sendPasswordResetEmail } from '../utils/mailer.js';
 
 export const signUp = async (req, res) => {
     try {
         // validate the user along joi
-        const { error,value } = userSchema.validate(req.body);
+        const { error, value } = userSchema.validate(req.body);
 
-        if(error){
+        if (error) {
             return res.status(400).json({ message: error.details[0].message })
         }
 
         const { fullName, email, password, role, adminCode } = value;
 
         // find user by name
-        const findUserName = await User.findOne({ fullName})
+        const findUserName = await User.findOne({ fullName })
         if (findUserName) {
             return res.status(409).json({ message: `Choose different UserName` });
         }
@@ -31,7 +31,7 @@ export const signUp = async (req, res) => {
         }
 
         // find if a similar email exist, if not create
-        const findUser = await User.findOne({ email})
+        const findUser = await User.findOne({ email })
 
         if (findUser) {
             return res.status(409).json({ message: `Choose different Email` });
@@ -60,7 +60,7 @@ export const signUp = async (req, res) => {
             // token
             const token = jwt.sign({ id: signUp._id }, SECRET, { expiresIn: '1d' })
             console.log("RegisterData", signUp)
-            return res.status(201).json({ message: 'Successful registration',token, signUp })
+            return res.status(201).json({ message: 'Successful registration', token, signUp })
         }
 
     } catch (error) {
@@ -69,14 +69,14 @@ export const signUp = async (req, res) => {
 }
 
 // Resend OTP
-export const resendOtp = async(req, res)=>{
+export const resendOtp = async (req, res) => {
     try {
         const UserID = req.user.id
 
         // find user by id from the token
         const user = await User.findById(UserID)
-        if(!user){
-            return res.status(404).json({message:"User not found"})
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
         }
         // generate new otp
         const otp = otpGenerator(6)
@@ -94,9 +94,9 @@ export const resendOtp = async(req, res)=>{
         console.log('OTP MAIL', sendotpmail)
 
         // return response
-        return res.status(200).json({message:"Otp Sent to mail", updatedUser})
+        return res.status(200).json({ message: "Otp Sent to mail", updatedUser })
     } catch (error) {
-        return res.status(500).json({message:error.message})
+        return res.status(500).json({ message: error.message })
     }
 }
 
@@ -154,17 +154,103 @@ export const verifyOtp = async (req, res) => {
     }
 };
 
-export const login = async (req, res) => {
+// Send otp to mail to help reset password
+export const forgotPasswordOtp = async (req, res) => {
     try {
-        const {error, value} = loginSchema.validate(req.body)
-        if(error){
-            return res.status(400).json({message:error.details[0].message})
+        const { error, value } = forgotPasswordOtpSchema.validate(req.body)
+        if (error) {
+            return res.status(400).json({ message: error.details[0].message })
         }
 
-        const{fullName, password} = value
+        // validate email or find user by email
+        const { email } = value
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
+        }
+
+        // generate new otp
+        const otp = otpGenerator(6)
+        const hashotp = await bcrypt.hash(otp, 12);
+        console.log("hashotp", hashotp, otp)
+
+        // update user otp and Expiring time by saving it
+        user.otp = hashotp
+        user.otpExpiresAt = Date.now() + 10 * (60 * 1000) // 10 minutes from now
+        const updatedUser = await user.save()
+        console.log('Updated User', updatedUser)
+
+        // send mail
+        const sendotpmail = await sendPasswordResetEmail(user.email, user.fullName, otp);
+        console.log('OTP MAIL', sendotpmail)
+
+        // return response
+        return res.status(200).json({ message: "Otp Sent to mail", updatedUser })
+    } catch (error) {
+        return res.status(500).json({ message: error.message })
+    };
+};
+
+// reset password
+export const resetPassword = async (req, res) => {
+    try {
+        const { error, value } = resetPasswordSchema.validate(req.body)
+        if (error) {
+            return res.status(400).json({ message: error.details[0].message })
+        }
+        const { email, otp, newPassword } = value
+        // find user by email
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
+        }
+        // Check if a reset process is active meaning otp exist
+        if (!user.otp) {
+            return res.status(400).json({ message: "No active reset request found." })
+        }
+        // Correctly compare the plain-text OTP with the hashed OTP
+        const isMatch = await bcrypt.compare(otp, user.otp);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid Otp" })
+        }
+        // Check if otp has expired
+        if (Date.now() > user.otpExpiresAt){
+            return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+        }
+
+        // clear the expired OTP to prevent retries after verification
+        user.otp = null;
+        user.otpExpiresAt = null;
+        await user.save();
+
+        // hash the new password
+        const hashPassowrd = await bcrypt.hash(newPassword, 12);
+        console.log('hashPassword', hashPassowrd)
+
+        // update user password by saving it
+        user.password = hashPassowrd
+        const updatedUser = await user.save()
+        console.log('Updated User', updatedUser)
+
+        // return response
+        return res.status(200).json({ message: "Password Reset Successful", updatedUser })
+
+    } catch (error) {
+        return res.status(500).json({ message: error.message })
+    }
+}
+
+export const login = async (req, res) => {
+    try {
+        const { error, value } = loginSchema.validate(req.body)
+        if (error) {
+            return res.status(400).json({ message: error.details[0].message })
+        }
+
+        const { fullName, password } = value
 
         // find user by email
-        const user = await User.findOne({fullName})
+        const user = await User.findOne({ fullName })
         if (!user) {
             return res.status(401).json({ message: 'Invalid Credentials' })
         }
@@ -174,7 +260,7 @@ export const login = async (req, res) => {
         }
 
         const token = jwt.sign({ id: user.id }, SECRET, { expiresIn: '1d' })
-        return res.status(200).json({message:"Token",token, user})
+        return res.status(200).json({ message: "Token", token, user })
 
     } catch (error) {
         return res.status(500).json({ message: error.message })
