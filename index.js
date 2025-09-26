@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { userRouter } from './routers/userRouter.js';
+import { productRouter } from './routers/productRouter.js';
 
 const app = express();
 app.use(express.json());
@@ -11,6 +12,7 @@ app.use(cors())
 
 // routers
 app.use('/api/V1/user', userRouter)
+app.use('/api/V1/product', productRouter)
 
 
 
